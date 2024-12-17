@@ -21,20 +21,12 @@ public sealed class GetAllCategoriesQueryHandler : IRequestHandler<GetAllCategor
         var offset = (request.PageNumber - 1) * request.PageSize;
         var pageSize = request.PageSize;
 
-        var sql = @"
-        SELECT COUNT(*) FROM ""categories"";
+        var totalCount = await connection.QuerySingleAsync<int>("SELECT COUNT(*) FROM categories");
 
-        SELECT ""Id"", ""Name""
-        FROM ""categories""
-        ORDER BY ""Name""
-        OFFSET @Offset LIMIT @PageSize;
-    ";
-
-        using var multi = await connection.QueryMultipleAsync(sql, new { Offset = offset, PageSize = pageSize });
-
-        var totalCount = await multi.ReadSingleAsync<int>();
-
-        var categories = (await multi.ReadAsync<GetAllCategoriesDto>()).ToList();
+        var categories = (await connection.QueryAsync<GetAllCategoriesDto>(
+            "SELECT Id, Name FROM categories ORDER BY Name OFFSET @Offset LIMIT @PageSize",
+            new { Offset = offset, PageSize = pageSize }
+        )).ToList();
 
         return new PaginatedList<GetAllCategoriesDto>(categories, totalCount, request.PageNumber, request.PageSize);
     }
